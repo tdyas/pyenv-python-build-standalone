@@ -1,0 +1,379 @@
+#!/usr/bin/env bash
+#
+# Summary: Install a Python Build Standalone version of Python.
+#
+# Usage: pyenv pbs-install [-fs] <python_version> [pbs_release]
+#        pyenv pbs-install -l|--list
+#        pyenv pbs-install --version
+#
+#   -l/--list           List all available versions.
+#   -f/--force          Install even if the version appears to be installed already.
+#   -s/--skip-existing  Skip if the version appears to be installed already.
+#   --version           Print the version of the pbs-install plugin.
+#
+#   python_version>   A Python version such as 3.9 or 3.9.20. If only the major/minor version numbers
+#                     are specified, then the latest patchlevel for the given version will be installed.
+#
+#   pbs_release       An optional PBS release tag to install. If it is not specfied, then the latest
+#                     PBS release for the chosen Python version will be installed.
+#
+# See https://gregoryszorc.com/docs/python-build-standalone/main/ and
+# https://github.com/indygreg/python-build-standalone for more information about the
+# Python Build Standalone project.
+
+set -e
+[ -n "$PYENV_DEBUG" ] && set -x
+
+# Provide pyenv completions
+if [ "$1" = "--complete" ]; then
+  echo --list
+  echo --force
+  echo --skip-existing
+  echo --version
+fi
+
+# Determine the machine architecture as defined by PBS.
+function determine_pbs_arch()  {
+    local platform="$(uname -m)"
+    case "$platform" in
+        x86_64)
+            # TODO: Perform CPU check here to decide on v2 or v3 PBS x86_64 variants.
+            echo "x86_64"
+            ;;
+        aarch64)
+            echo "aarch64"
+            ;;
+        *)
+            echo "ERROR: Unsupported platform: ${platform}" 1>&2
+            exit 1
+            ;;
+    esac
+}
+
+# Determine the operating system as defined by PBS.
+function determine_pbs_os() {
+    local os="$(uname)"
+    case "$os" in
+        Linux)
+            echo "unknown-linux-gnu"
+            ;;
+        Darwin)
+            echo "apple-darwin"
+            ;;
+        *)
+            echo "ERROR: Unsupported OS: ${os}" 1>&2
+            exit 1
+            ;;
+    esac
+}
+
+
+# Add any `share/python-build-standalone/` directory from each pyenv plugin to the list of
+# paths where PBS download definitions are found.
+shopt -s nullglob
+for plugin_path in "$PYENV_ROOT"/plugins/*/share/python-build-standalone; do
+  PBS_DOWNLOAD_DEFINITIONS="${PYTHON_BUILD_DEFINITIONS}:${plugin_path}"
+done
+shopt -u nullglob
+
+# Configure temporary directory.
+if [ -z "$TMPDIR" ]; then
+  TMP="/tmp"
+else
+  TMP="${TMPDIR%/}"
+fi
+
+# Display usage for this tool.
+usage() {
+  pyenv-help pbs-install 2>/dev/null
+  [ -z "$1" ] || exit "$1"
+}
+
+##
+## Parse and handle command-line options.
+##
+
+parse_options() { 
+    OPTIONS=();
+    ARGUMENTS=();
+    local arg option index;
+    for arg in "$@";
+    do
+        if [ "${arg:0:1}" = "-" ]; then
+            if [ "${arg:1:1}" = "-" ]; then
+                OPTIONS[${#OPTIONS[*]}]="${arg:2}";
+            else
+                index=1;
+                while option="${arg:$index:1}"; do
+                    [ -n "$option" ] || break;
+                    OPTIONS[${#OPTIONS[*]}]="$option";
+                    index=$(($index+1));
+                done
+            fi
+        else
+            ARGUMENTS[${#ARGUMENTS[*]}]="$arg"
+        fi
+    done
+}
+
+unset FORCE
+unset SKIP_EXISTING
+unset VERBOSE
+
+parse_options "$@"
+for option in "${OPTIONS[@]}"; do
+    case "$option" in
+        "h" | "help")
+        usage 0
+        ;;
+    "l" | "list")
+        echo "Available versions:"
+        definitions | indent
+        exit
+        ;;
+    "f" | "force")
+        FORCE=true
+        ;;
+    "s" | "skip-existing")
+        SKIP_EXISTING=true
+        ;;
+    "version")
+        echo "Version 0.1"
+        exit
+        ;;
+    *)
+        usage 1 >&2
+        ;;
+    esac
+done
+
+##
+## Download and install a given Python version provided by PBS.
+##
+
+# Split a version string and determine which Python version to install. This function
+# searches the download definitions if only a major/minor version is provided.
+choose_python_version() {
+    local major minor patchlevel
+
+    IFS=. read major minor patchlevel <<<"$1"
+
+    if [ -z "$major" ]; then
+        echo "ERROR: Unable to parse Python major version from `$1`." 1>&2
+        exit 1
+    fi
+
+    if [ -z "$minor" ]; then
+        echo "ERROR: Unable to parse Python minor version from \`$1\`." 1>&2
+        exit 1
+    fi
+
+    if [ -n "$patchlevel" ]; then
+        echo "${major}.${minor}.${patchlevel}"
+        return
+    fi
+
+    # Scan the definitions paths for matching Python versions.
+    IFS=: pbs_download_definitions_paths=($PBS_DOWNLOAD_DEFINITIONS)
+    local -a candidate_python_versions
+    for pbs_download_definitions_path in "${pbs_download_definitions_paths[@]}" ; do
+        if [ -z "$pbs_download_definitions_path" ]; then
+            continue
+        fi
+
+        shopt -s nullglob
+        for python_version_dir in "${pbs_download_definitions_path}/${major}.${minor}."* ; do
+            if [ -d "$python_version_dir" ]; then
+                candidate_python_versions+="${python_version_dir##*/}"
+            fi
+        done
+        shopt -u nullglob
+    done
+
+    # If no candidate Python versions were found, then error.
+    if [ "${#candidate_python_versions[@]}" = 0 ]; then
+        echo "ERROR: No candidate Python versions found for \`$major.$minor\`." 1>&2
+        exit 1
+    fi
+
+    # Sort the versions and choose the latest one.
+    IFS=$'\n' sorted_candidate_python_versions=($(sort -r <<<"${candidate_python_versions[*]}"))
+    echo "${sorted_candidate_python_versions[0]}"
+}
+
+# Choose the PBS release tag to install given a Python version.
+choose_pbs_release_tag() {
+    local python_version="$1"
+
+    # Scan the definitions paths for candidate PBS release tags for this Python version.
+    IFS=: pbs_download_definitions_paths=($PBS_DOWNLOAD_DEFINITIONS)
+    local -a candidate_pbs_release_tags
+    for pbs_download_definitions_path in "${pbs_download_definitions_paths[@]}" ; do
+        if [ -z "$pbs_download_definitions_path" ]; then
+            continue
+        fi
+
+        python_version_dir="${pbs_download_definitions_path}/${python_version}"
+        if [ -d "$python_version_dir" ]; then
+            shopt -s nullglob
+            for pbs_release_tag_dir in "${python_version_dir}/"* ; do
+                if [ -d "$pbs_release_tag_dir" ]; then
+                    candidate_pbs_release_tags+="${pbs_release_tag_dir##*/}"
+                fi
+            done
+            shopt -u nullglob
+        fi
+    done
+
+    # If no candidate PBS release tags were found, then error.
+    if [ "${#candidate_pbs_release_tags[@]}" = 0 ]; then
+        echo "ERROR: No candidate PBS release tags found for Python version v${python_version}." 1>&2
+        exit 1
+    fi
+
+    # Sort the versions and choose the latest one.
+    IFS=$'\n' sorted_candidate_pbs_release_tags=($(sort -r <<<"${candidate_pbs_release_tags[*]}"))
+    echo "${candidate_pbs_release_tags[0]}"
+}
+
+# Find the download definitions directory for the given Python version and PBS release tag.
+get_download_definitions_path() {
+    local python_version="$1"
+    local pbs_release_tag="$2"
+
+    # Scan the definitions paths for candidate PBS release tags for this Python version.
+    IFS=: pbs_download_definitions_paths=($PBS_DOWNLOAD_DEFINITIONS)
+    local -a candidate_download_definition_paths
+    for pbs_download_definitions_path in "${pbs_download_definitions_paths[@]}" ; do
+        if [ -z "$pbs_download_definitions_path" ]; then
+            continue
+        fi
+
+        pbs_release_tag_dir="${pbs_download_definitions_path}/${python_version}/${pbs_release_tag}"
+        if [ -d "$pbs_release_tag_dir" ]; then
+            candidate_download_definition_paths+="$pbs_release_tag_dir"
+        fi
+    done
+
+    # If no candidate definitions were found, then error.
+    if [ "${#candidate_download_definition_paths[@]}" = 0 ]; then
+        echo "ERROR: No download definitions were found for Python version v${python_version} (PBS release ${pbs_release_tag})." 1>&2
+        exit 1
+    fi
+
+    # If multilpe candidate definitions were found, then error.
+    if [ "${#candidate_download_definition_paths[@]}" -gt 1 ]; then
+        echo "ERROR: Multiple download definitions were found for Python version v${python_version} (PBS release ${pbs_release_tag})." 1>&2
+        exit 1
+    fi
+
+    echo "${candidate_download_definition_paths[0]}"
+}
+
+http_get_curl() {
+  curl -q -o "${2:--}" -sSLf ${CURL_OPTS} "$1"
+}
+
+compute_sha256() {
+  local output
+  if type shasum &>/dev/null; then
+    output="$(shasum -a 256 -b)" || return 1
+    echo "${output% *}"
+  elif type openssl &>/dev/null; then
+    local openssl="$(command -v "$(brew --prefix openssl 2>/dev/null || true)"/bin/openssl openssl | head -n1)"
+    output="$("$openssl" dgst -sha256 2>/dev/null)" || return 1
+    echo "${output##* }"
+  elif type sha256sum &>/dev/null; then
+    output="$(sha256sum -b)" || return 1
+    echo "${output%% *}"
+  else
+    return 1
+  fi
+}
+
+
+install_pbs_release() {
+    local pbs_download_definition_path="$1"
+    local python_version="$2"
+    local pbs_release_tag="$3"
+
+    # Load the URL and sha256 checksum to use.
+    local -a download_file_lines
+    mapfile -t -n 2 download_file_lines < "$pbs_download_definition_path"
+    if [ "${#download_file_lines[@]}" != 2 ]; then
+        echo "ERROR: Malformed download definition file. Expected two lines to be read.: $pbs_download_definition_path" 1>&2
+        exit 1
+    fi
+
+    download_url="${download_file_lines[0]}"
+    expected_checksum="${download_file_lines[1]}"
+
+    download_url_basename="$(basename $download_url)"
+    case "$download_url_basename" in
+        *.tar.gz)
+            ;;
+        *)
+            echo "ERROR: Non .tar.gz archives are not currently supported. (URL $download_url)" 1>&2
+            exit 1
+            ;;
+    esac
+
+    # Download the PBS distribution.
+    # TODO: Cache the downloads locally.
+    local download_dir="$(mktemp -d -p $TMP -t pbs-install.XXXXXX)"
+    http_get_curl "$download_url" "${download_dir}/cpython.tar.gz"
+    echo "Downloaded ${download_url}."
+    local pbs_archive_path="${download_dir}/cpython.tar.gz"
+
+    local computed_checksum=`echo "$(compute_sha256 < "$pbs_archive_path")" | tr [A-Z] [a-z]`
+    [ -n "$computed_checksum" ] || return 1
+
+    if [ "$expected_checksum" != "$computed_checksum" ]; then
+        { echo
+            echo "checksum mismatch: ${pbs_archive_path} (file is corrupt)"
+            echo "expected ${expected_checksum}, got ${computed_checksum}"
+            echo
+        } >&2
+        return 1
+    fi
+
+    pbs_install_id="pbs-${python_version}-${pbs_release_tag}"
+    local pbs_install_version_dir="$(pyenv-root)/versions/${pbs_install_id}"
+    mkdir -p "$pbs_install_version_dir"
+    tar xzf "$pbs_archive_path" --strip-components=1 -C "$pbs_install_version_dir"
+
+    # Verify that Python was installed.
+    if [ ! -x "${pbs_install_version_dir}/bin/python" ]; then
+        echo "ERROR: ${pbs_install_id} did not install correctly. Could not find `python` binary." 1>&2
+        exit 1
+    fi
+
+    echo "Installed ${pbs_install_id}."
+} 
+
+if [ -z "$ARGUMENTS[0]" ]; then
+    usage 1 1>&2
+fi
+
+python_version=$(choose_python_version "${ARGUMENTS[0]}")
+echo "Python version: $python_version"
+
+if [ -z "${ARGUMENTS[1]}" ]; then
+    pbs_release_tag=$(choose_pbs_release_tag "$python_version")
+else
+    pbs_release_tag="${ARGUMENTS[1]}"
+fi
+echo "PBS release tag: $pbs_release_tag"
+
+download_definitions_path=$(get_download_definitions_path "$python_version" "$pbs_release_tag")
+
+pbs_arch="$(determine_pbs_arch)"
+pbs_os="$(determine_pbs_os)"
+
+download_definition_path="${download_definitions_path}/${pbs_arch}-${pbs_os}.def"
+if [ ! -r "$download_definition_path" ]; then
+    echo "ERROR: Unable to access download definition file at $download_definition_path." 1>&2
+    exit 1
+fi
+
+install_pbs_release "$download_definition_path" "$python_version" "$pbs_release_tag"
