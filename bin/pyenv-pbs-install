@@ -197,7 +197,7 @@ choose_python_version() {
     fi
 
     # Sort the versions and choose the latest one.
-    IFS=$'\n' sorted_candidate_python_versions=($(sort -r <<<"${candidate_python_versions[*]}"))
+    IFS=$'\n' sorted_candidate_python_versions=($(sort -V -r <<<"${candidate_python_versions[*]}"))
     echo "${sorted_candidate_python_versions[0]}"
 }
 
@@ -232,7 +232,7 @@ choose_pbs_release_tag() {
     fi
 
     # Sort the versions and choose the latest one.
-    IFS=$'\n' sorted_candidate_pbs_release_tags=($(sort -r <<<"${candidate_pbs_release_tags[*]}"))
+    IFS=$'\n' sorted_candidate_pbs_release_tags=($(sort -V -r <<<"${candidate_pbs_release_tags[*]}"))
     echo "${candidate_pbs_release_tags[0]}"
 }
 
