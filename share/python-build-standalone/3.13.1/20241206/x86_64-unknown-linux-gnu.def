@@ -1,3 +1,2 @@
-https://github.com/indygreg/python-build-standalone/releases/download/20241206/cpython-3.13.1+20241206-x86_64-unknown-linux-gnu-install_only.tar.gz
-9fbbe1061a2b0956ccee6b5618e81c076f83b4be0294b850d3f35370ace875ca
-foo
+https://github.com/indygreg/python-build-standalone/releases/download/20241206/cpython-3.13.1%2B20241206-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz
+5f4ed2b4444b62844dc88cca756435041c2fc2b7a5a64ac5281d83b3d19dcb72
