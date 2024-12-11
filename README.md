@@ -6,7 +6,7 @@ This is a rough draft of a plugin for [`pyenv`](https://github.com/pyenv/pyenv) 
 
 1. Create the pyenv plugins directory: `mkdir "$(pyenv root)/plugins"`
 
-2. Clone this repository into your pyenv plugins directory: `git clone https://github.com/tdyas/pyenv-python-build-standalone.git "$(pyenv root)/plugins/pyenv-python-build-standalone"
+2. Clone this repository into your pyenv plugins directory: `git clone https://github.com/tdyas/pyenv-python-build-standalone.git "$(pyenv root)/plugins/pyenv-python-build-standalone"`
 
 ## Usage
 
@@ -14,4 +14,6 @@ The plugin adds a new `pyenv pbs-install` subcommand which will download and ins
 
 For example, install the latest Python 3.12 patchlevel and PBS release tag from PBS: `pyenv pbs-install 3.12`
 
-The name of the particular PBS version will be `pbs-PYTHON_VERSION-PBS_RELEASE_TAG`. You can then use that name with `pyenv global` to make it visible.
+Or install a specific PBS release by running: `pyenv pbs-install 3.13.1 20241206`
+
+The name of the particular PBS version will be `pbs-PYTHON_VERSION-PBS_RELEASE_TAG`. You can then use that name with `pyenv global` to make it visible on the system.
