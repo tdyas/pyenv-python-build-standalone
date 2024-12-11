@@ -40,7 +40,7 @@ function determine_pbs_arch()  {
             # TODO: Perform CPU check here to decide on v2 or v3 PBS x86_64 variants.
             echo "x86_64"
             ;;
-        aarch64)
+        arm64)
             echo "aarch64"
             ;;
         *)
