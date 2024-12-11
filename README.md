@@ -4,7 +4,9 @@ This is a rough draft of a plugin for [`pyenv`](https://github.com/pyenv/pyenv) 
 
 ## Installation
 
-1. Clone this repository into your pyenv plugins directory: `git clone https://github.com/tdyas/pyenv-python-build-standalone.git "$(pyenv root)/pyenv-python-build-standalone"
+1. Create the pyenv plugins directory: `mkdir "$(pyenv root)/plugins"`
+
+2. Clone this repository into your pyenv plugins directory: `git clone https://github.com/tdyas/pyenv-python-build-standalone.git "$(pyenv root)/plugins/pyenv-python-build-standalone"
 
 ## Usage
 
