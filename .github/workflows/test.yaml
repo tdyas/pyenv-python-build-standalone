@@ -26,7 +26,7 @@ jobs:
     - name: Install a recent PBS Python into pyenv.
       run: |
         "${PYENV_ROOT}/bin/pyenv" pbs-install 3.12
-    - nane: Verify that the PBS Python runs
+    - name: Verify that the PBS Python runs
       run: |
         pbs_python_id="$(pyenv versions --bare | grep ^pbs-3.12)"
         if [ -z "$pbs_python_id" ]; then
