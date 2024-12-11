@@ -1,0 +1,39 @@
+on:
+  pull_request: {}
+  push:
+    branches:
+    - main
+
+jobs:
+  test_install_python:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, macos-13]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup pyenv
+      run: |
+        git clone https://github.com/pyenv/pyenv.git pyenv-root
+
+        PYENV_ROOT="$(pwd)/pyenv-root"
+        echo "PYENV_ROOT=${PYENV_ROOT}" >> "$GITHUB_ENV"
+        echo "${PYENV_ROOT}/bin" >> "$GITHUB_PATH"
+
+        mkdir -p pyenv-root/plugins
+        cd pyenv-root/plugins
+        ln -s ../.. pyenv-python-build-standalone
+
+    - name: Install a recent PBS Python into pyenv.
+      run: pyenv pbs-install 3.12
+
+    - name: Verify that the PBS Python actually runs
+      run: |
+        pbs_python_id="$(pyenv versions --bare | grep ^pbs-3.12)"
+        if [ -z "$pbs_python_id" ]; then
+           echo "ERROR: No PBS Python is visible to pyenv." 1>&2
+           exit 1
+        fi
+        "$(pyenv root)/versions/${pbs_python_id}/bin/python3" -c 'print("Hello from PBS.")'
