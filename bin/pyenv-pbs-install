@@ -67,6 +67,34 @@ function determine_pbs_os() {
     esac
 }
 
+# Read the lines of a file to a Bash array.
+#
+# Note: The `mapfile` builtin does this on modern Bash versions; macOS does not
+# ship with a modern bash, so we must implement the operation with just `read`.
+read_file_to_array() {
+    local input_file="$1"
+    local output_array_name="$2"
+    local line
+
+    while read line ; do
+        eval "${output_array_name}[\${#${output_array_name}[@]}]='$line'"
+    done < "$input_file"
+}
+
+# Sort a list of version numbers and place the output into the variable named
+# by the first parameter.
+sort_version_list() {
+    local output_array_name=$1
+    shift
+
+    local tmp_file1=$(mktemp -t pbs-install.XXXXXX)
+    local tmp_file2=$(mktemp -t pbs-install.XXXXXX)
+
+    printf "%s\n" "$@" > "$tmp_file1"
+    sort -V -r < "$tmp_file1" > "$tmp_file2"
+    read_file_to_array "$tmp_file2" "$output_array_name"
+}
+
 
 # Add any `share/python-build-standalone/` directory from each pyenv plugin to the list of
 # paths where PBS download definitions are found.
@@ -184,7 +212,7 @@ choose_python_version() {
         shopt -s nullglob
         for python_version_dir in "${pbs_download_definitions_path}/${major}.${minor}."* ; do
             if [ -d "$python_version_dir" ]; then
-                candidate_python_versions+="${python_version_dir##*/}"
+                candidate_python_versions[${#candidate_python_versions[@]}]="${python_version_dir##*/}"
             fi
         done
         shopt -u nullglob
@@ -197,7 +225,8 @@ choose_python_version() {
     fi
 
     # Sort the versions and choose the latest one.
-    IFS=$'\n' sorted_candidate_python_versions=($(sort -V -r <<<"${candidate_python_versions[*]}"))
+    local -a sorted_candidate_python_versions
+    sort_version_list sorted_candidate_python_versions "${candidate_python_versions[@]}"
     echo "${sorted_candidate_python_versions[0]}"
 }
 
@@ -213,12 +242,12 @@ choose_pbs_release_tag() {
             continue
         fi
 
-        python_version_dir="${pbs_download_definitions_path}/${python_version}"
+        local python_version_dir="${pbs_download_definitions_path}/${python_version}"
         if [ -d "$python_version_dir" ]; then
             shopt -s nullglob
             for pbs_release_tag_dir in "${python_version_dir}/"* ; do
                 if [ -d "$pbs_release_tag_dir" ]; then
-                    candidate_pbs_release_tags+="${pbs_release_tag_dir##*/}"
+                    candidate_pbs_release_tags[${#candidate_pbs_release_tags[@]}]="${pbs_release_tag_dir##*/}"
                 fi
             done
             shopt -u nullglob
@@ -232,7 +261,8 @@ choose_pbs_release_tag() {
     fi
 
     # Sort the versions and choose the latest one.
-    IFS=$'\n' sorted_candidate_pbs_release_tags=($(sort -V -r <<<"${candidate_pbs_release_tags[*]}"))
+    local -a candidate_pbs_release_tags
+    sort_version_list candidate_pbs_release_tags "${candidate_pbs_release_tags[@]}"
     echo "${candidate_pbs_release_tags[0]}"
 }
 
@@ -291,7 +321,6 @@ compute_sha256() {
   fi
 }
 
-
 install_pbs_release() {
     local pbs_download_definition_path="$1"
     local python_version="$2"
@@ -299,7 +328,7 @@ install_pbs_release() {
 
     # Load the URL and sha256 checksum to use.
     local -a download_file_lines
-    mapfile -t -n 2 download_file_lines < "$pbs_download_definition_path"
+    read_file_to_array "$pbs_download_definition_path" download_file_lines
     if [ "${#download_file_lines[@]}" != 2 ]; then
         echo "ERROR: Malformed download definition file. Expected two lines to be read.: $pbs_download_definition_path" 1>&2
         exit 1
