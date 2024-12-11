@@ -104,13 +104,6 @@ for plugin_path in "$PYENV_ROOT"/plugins/*/share/python-build-standalone; do
 done
 shopt -u nullglob
 
-# Configure temporary directory.
-if [ -z "$TMPDIR" ]; then
-  TMP="/tmp"
-else
-  TMP="${TMPDIR%/}"
-fi
-
 # Display usage for this tool.
 usage() {
   pyenv-help pbs-install 2>/dev/null
@@ -349,7 +342,7 @@ install_pbs_release() {
 
     # Download the PBS distribution.
     # TODO: Cache the downloads locally.
-    local download_dir="$(mktemp -d -p $TMP -t pbs-install.XXXXXX)"
+    local download_dir="$(mktemp -d -t pbs-install.XXXXXX)"
     http_get_curl "$download_url" "${download_dir}/cpython.tar.gz"
     echo "Downloaded ${download_url}."
     local pbs_archive_path="${download_dir}/cpython.tar.gz"
