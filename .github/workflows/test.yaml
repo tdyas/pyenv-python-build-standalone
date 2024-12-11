@@ -6,8 +6,9 @@ on:
 
 jobs:
   test_install_python:
-    matrix:
-      os: [ubuntu-latest, macos-latest]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout code
