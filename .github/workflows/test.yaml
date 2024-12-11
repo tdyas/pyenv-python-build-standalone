@@ -1,0 +1,26 @@
+on:
+  pull_request: {}
+  push:
+    branches:
+    - main
+
+jobs:
+  test_install_python:
+    matrix:
+      os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Setup pyenv
+      run: |
+        git clone https://github.com/pyenv/pyenv.git pyenv-root
+        echo "PYENV_ROOT=$(pwd}/pyenv-root" >> "$GITHUB_ENV"
+        cd pyenv-root
+        mkdir -p plugins
+        ln -s ../.. pyenv-python-build-standalone
+    - name: Install a recent PBS Python into pyenv.
+      run: |
+        export PATH="$(pwd):$(pwd)$PATH"
+        "${PYENV_ROOT}/bin/pyenv" pbs-install 3.12
+        "$(pyenv root)/versions/pbs-3.12*/bin/python3 -c 'print("Hello from PBS.")'
