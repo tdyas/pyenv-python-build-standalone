@@ -19,6 +19,7 @@ jobs:
         echo "PYENV_ROOT=$(pwd)/pyenv-root" >> "$GITHUB_ENV"
         cd pyenv-root
         mkdir -p plugins
+        cd plugins
         ln -s ../.. pyenv-python-build-standalone
     - name: Install a recent PBS Python into pyenv.
       run: |
