@@ -13,24 +13,27 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
     - name: Setup pyenv
       run: |
         git clone https://github.com/pyenv/pyenv.git pyenv-root
 
-        echo "PYENV_ROOT=$(pwd)/pyenv-root" >> "$GITHUB_ENV"
-        echo "PATH=$(pwd):${PYENV_ROOT}/bin:\${PATH}" >> "$GITHUB_ENV"
+        PYENV_ROOT="$(pwd)/pyenv-root"
+        echo "PYENV_ROOT=${PYENV_ROOT}" >> "$GITHUB_ENV"
+        echo "${PYENV_ROOT}/bin" >> "$GITHUB_PATH"
 
         mkdir -p pyenv-root/plugins
         cd pyenv-root/plugins
         ln -s ../.. pyenv-python-build-standalone
+
     - name: Install a recent PBS Python into pyenv.
-      run: |
-        "${PYENV_ROOT}/bin/pyenv" pbs-install 3.12
-    - name: Verify that the PBS Python runs
+      run: pyenv pbs-install 3.12
+
+    - name: Verify that the PBS Python actually runs
       run: |
         pbs_python_id="$(pyenv versions --bare | grep ^pbs-3.12)"
         if [ -z "$pbs_python_id" ]; then
-           echo "No PBS Python is visible to pyenv." 1>&2
+           echo "ERROR: No PBS Python is visible to pyenv." 1>&2
            exit 1
         fi
         "$(pyenv root)/versions/${pbs_python_id}/bin/python3" -c 'print("Hello from PBS.")'
