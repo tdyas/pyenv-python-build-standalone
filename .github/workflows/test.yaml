@@ -16,12 +16,12 @@ jobs:
     - name: Setup pyenv
       run: |
         git clone https://github.com/pyenv/pyenv.git pyenv-root
-        echo "PYENV_ROOT=$(pwd}/pyenv-root" >> "$GITHUB_ENV"
+        echo "PYENV_ROOT=$(pwd)/pyenv-root" >> "$GITHUB_ENV"
         cd pyenv-root
         mkdir -p plugins
         ln -s ../.. pyenv-python-build-standalone
     - name: Install a recent PBS Python into pyenv.
       run: |
-        export PATH="$(pwd):$(pwd)$PATH"
+        export PATH="$(pwd):${PYENV_ROOT}/bin:${PATH}"
         "${PYENV_ROOT}/bin/pyenv" pbs-install 3.12
         "$(pyenv root)/versions/pbs-3.12*/bin/python3 -c 'print("Hello from PBS.")'
