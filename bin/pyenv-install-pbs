@@ -277,8 +277,8 @@ choose_pbs_release_tag() {
 
     # Sort the versions and choose the latest one.
     local -a candidate_pbs_release_tags
-    sort_version_list candidate_pbs_release_tags "${candidate_pbs_release_tags[@]}"
-    echo "${candidate_pbs_release_tags[0]}"
+    sort_version_list sorted_candidate_pbs_release_tags "${candidate_pbs_release_tags[@]}"
+    echo "${sorted_candidate_pbs_release_tags[0]}"
 }
 
 # Find the download definitions directory for the given Python version and PBS release tag.
