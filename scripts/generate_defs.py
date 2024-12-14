@@ -16,7 +16,7 @@ import textwrap
 import github
 import requests
 from github.GitReleaseAsset import GitReleaseAsset
-
+from packaging.version import Version
 
 DEFS_PATH = Path("./share/python-build-standalone")
 
@@ -45,8 +45,35 @@ def _compute_sha256(url):
     return sha256_hash.hexdigest()
 
 
-def get_scraped_releases() -> frozenset[str]:
-    return frozenset(DEFS_PATH.glob("*"))
+def get_scraped_python_versions() -> frozenset[str]:
+    return frozenset(p for p in DEFS_PATH.glob("*"))
+
+
+def get_scraped_pbs_release_tags() -> frozenset[str]:
+    return frozenset(p for p in DEFS_PATH.glob("*/*"))
+
+
+def scrape_release(release, asset_map, sha256_map) -> None:
+    assets = release.get_assets()
+    for asset in assets:
+        # NB: From https://python-build-standalone.readthedocs.io/en/latest/running.html#obtaining-distributions
+        # > Casual users will likely want to use the install_only archive,
+        # > as most users do not need the build artifacts present in the full archive.
+        is_applicable = any(
+            f"{machine}-{osname}-install_only" in asset.name
+            for machine, osname in itertools.product(
+                ["aarch64", "x86_64"], ["apple-darwin", "unknown-linux-gnu"]
+            )
+        )
+        if not is_applicable:
+            continue
+
+        is_checksum = asset.name.endswith(".sha256")
+        if is_checksum:
+            shasum = requests.get(asset.browser_download_url).text.strip()
+            sha256_map[asset.name.removesuffix(".sha256")] = shasum
+        else:
+            asset_map[asset.name] = asset
 
 
 def main() -> None:
@@ -71,37 +98,22 @@ def main() -> None:
 
     asset_map: dict[str, GitReleaseAsset] = {}
     sha256_map: dict[str, str] = {}
-    existing_scraped_releases = get_scraped_releases()
+    existing_scraped_releases = get_scraped_pbs_release_tags()
+    most_recent_release = Version(sorted([str(rel.name) for rel in existing_scraped_releases], reverse=True)[0]) if existing_scraped_releases else None
 
-    for release in releases.reversed:
+    for release in releases:
         tag_name = release.tag_name
 
         if (
             options.scrape_all_releases
             or (options.scrape_releases and tag_name in options.scrape_releases)
-            or (not options.scrape_releases and tag_name not in existing_scraped_releases)
+            or most_recent_release is None
+            or Version(tag_name) > most_recent_release
         ):
-            print(f"Scraping release tag `{tag_name}`.")
-            assets = release.get_assets()
-            for asset in assets:
-                # NB: From https://python-build-standalone.readthedocs.io/en/latest/running.html#obtaining-distributions
-                # > Casual users will likely want to use the install_only archive,
-                # > as most users do not need the build artifacts present in the full archive.
-                is_applicable = any(
-                    f"{machine}-{osname}-install_only" in asset.name
-                    for machine, osname in itertools.product(
-                        ["aarch64", "x86_64"], ["apple-darwin", "unknown-linux-gnu"]
-                    )
-                )
-                if not is_applicable:
-                    continue
-
-                is_checksum = asset.name.endswith(".sha256")
-                if is_checksum:
-                    shasum = requests.get(asset.browser_download_url).text.strip()
-                    sha256_map[asset.name.removesuffix(".sha256")] = shasum
-                else:
-                    asset_map[asset.name] = asset
+            print(f"Scraping release tag `{release.tag_name}`.")
+            scrape_release(release=release, asset_map=asset_map, sha256_map=sha256_map)
+        else:
+            print(f"Skipping release {tag_name}.")
 
     print("Finished scraping releases.")
 
