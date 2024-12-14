@@ -27,7 +27,7 @@ jobs:
         ln -s ../.. pyenv-python-build-standalone
 
     - name: Install a recent PBS Python into pyenv.
-      run: pyenv pbs-install 3.12
+      run: pyenv install-pbs 3.12
 
     - name: Verify that the PBS Python actually runs
       run: |

@@ -2,14 +2,14 @@
 #
 # Summary: Install a Python Build Standalone version of Python.
 #
-# Usage: pyenv pbs-install [-fs] <python_version> [pbs_release]
-#        pyenv pbs-install -l|--list
-#        pyenv pbs-install --version
+# Usage: pyenv install-pbs [-fs] <python_version> [pbs_release]
+#        pyenv install-pbs -l|--list
+#        pyenv install-pbs --version
 #
 #   -l/--list           List all available versions.
 #   -f/--force          Install even if the version appears to be installed already.
 #   -s/--skip-existing  Skip if the version appears to be installed already.
-#   --version           Print the version of the pbs-install plugin.
+#   --version           Print the version of the install-pbs plugin.
 #
 #   python_version>   A Python version such as 3.9 or 3.9.20. If only the major/minor version numbers
 #                     are specified, then the latest patchlevel for the given version will be installed.
@@ -87,8 +87,8 @@ sort_version_list() {
     local output_array_name=$1
     shift
 
-    local tmp_file1=$(mktemp -t pbs-install.XXXXXX)
-    local tmp_file2=$(mktemp -t pbs-install.XXXXXX)
+    local tmp_file1=$(mktemp -t install-pbs.XXXXXX)
+    local tmp_file2=$(mktemp -t install-pbs.XXXXXX)
 
     printf "%s\n" "$@" > "$tmp_file1"
     sort -V -r < "$tmp_file1" > "$tmp_file2"
@@ -106,7 +106,7 @@ shopt -u nullglob
 
 # Display usage for this tool.
 usage() {
-  pyenv-help pbs-install 2>/dev/null
+  pyenv-help install-pbs 2>/dev/null
   [ -z "$1" ] || exit "$1"
 }
 
@@ -342,7 +342,7 @@ install_pbs_release() {
 
     # Download the PBS distribution.
     # TODO: Cache the downloads locally.
-    local download_dir="$(mktemp -d -t pbs-install.XXXXXX)"
+    local download_dir="$(mktemp -d -t install-pbs.XXXXXX)"
     http_get_curl "$download_url" "${download_dir}/cpython.tar.gz"
     echo "Downloaded ${download_url}."
     local pbs_archive_path="${download_dir}/cpython.tar.gz"
