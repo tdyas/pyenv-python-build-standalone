@@ -359,7 +359,7 @@ install_pbs_release() {
         return 1
     fi
 
-    pbs_install_id="pbs-${python_version}-${pbs_release_tag}"
+    pbs_install_id="pbs-${python_version}+${pbs_release_tag}"
     local pbs_install_version_dir="$(pyenv-root)/versions/${pbs_install_id}"
     mkdir -p "$pbs_install_version_dir"
     tar xzf "$pbs_archive_path" --strip-components=1 -C "$pbs_install_version_dir"
