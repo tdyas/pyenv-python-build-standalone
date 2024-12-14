@@ -37,3 +37,7 @@ jobs:
            exit 1
         fi
         "$(pyenv root)/versions/${pbs_python_id}/bin/python3" -c 'print("Hello from PBS.")'
+    - name: Test that list release option
+      run: |
+        pbs_python_id="$(pyenv versions --bare | grep ^pbs-3.12)"
+        pyenv install-pbs --list | grep -q "$pbs_python_id"

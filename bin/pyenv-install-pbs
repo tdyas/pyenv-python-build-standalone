@@ -137,6 +137,29 @@ parse_options() {
     done
 }
 
+# List the PBS tags for each Python version and PBS release tag.
+list_releases() {
+    IFS=: pbs_download_definitions_paths=($PBS_DOWNLOAD_DEFINITIONS)
+    for pbs_download_definitions_path in "${pbs_download_definitions_paths[@]}" ; do
+        if [ -z "$pbs_download_definitions_path" ]; then
+            continue
+        fi
+
+        shopt -s nullglob
+        for python_version_dir in "${pbs_download_definitions_path}/"* ; do
+            if [ -d "$python_version_dir" ]; then
+                for pbs_release_tag_dir in "${python_version_dir}/"* ; do
+                    if [ -d "$pbs_release_tag_dir" ]; then
+                        echo "pbs-$(basename $python_version_dir)+$(basename $pbs_release_tag_dir)"
+                    fi
+                done
+            fi
+        done
+        shopt -u nullglob
+    done
+
+}
+
 unset FORCE
 unset SKIP_EXISTING
 unset VERBOSE
@@ -148,8 +171,7 @@ for option in "${OPTIONS[@]}"; do
         usage 0
         ;;
     "l" | "list")
-        echo "Available versions:"
-        definitions | indent
+        list_releases | sort -V -u
         exit
         ;;
     "f" | "force")
