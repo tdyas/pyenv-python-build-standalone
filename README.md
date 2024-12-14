@@ -10,6 +10,8 @@ This is a rough draft of a plugin for [`pyenv`](https://github.com/pyenv/pyenv) 
 
 ## Usage
 
+### Install a PBS Python
+
 The plugin adds a new `pyenv install-pbs` subcommand which will download and install Python builds from the Python Build Standalone site. The metadata necessary to do that comes with the plugin.
 
 For example, install the latest Python 3.12 patchlevel and PBS release tag from PBS: `pyenv install-pbs 3.12`
@@ -17,3 +19,7 @@ For example, install the latest Python 3.12 patchlevel and PBS release tag from 
 Or install a specific PBS release by running: `pyenv install-pbs 3.13.1 20241206`
 
 The name of the particular PBS version will be `pbs-PYTHON_VERSION+PBS_RELEASE_TAG`. You can then use that name with `pyenv global` to make it visible on the system.
+
+### Listng releases
+
+Run `pyenv install-pbs --list` to see a list of all known PBS Python releases. The output will be in the form of `pbs-PYTHON_VERSION+PBS_RELEASE_TAG` for each release.
