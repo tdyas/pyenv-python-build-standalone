@@ -1,7 +1,7 @@
 #!/bin/sh
 
-dir="$(dirname $BASH_SOURCE)"
-if [ ! -d "${dir}/.venv" ]; then
+dir="$(dirname $0)"
+if [ ! -d "${dir:=.}/.venv" ]; then
   python3 -m venv "${dir}/.venv"
   "${dir}/.venv/bin/pip" install -r "${dir}/requirements.txt"
 fi
