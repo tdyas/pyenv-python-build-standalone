@@ -90,7 +90,7 @@ def main() -> None:
         raise Exception("This helper script must be run from the root of the repository.")
 
     github = _github()
-    pbs_repo = github.get_repo("indygreg/python-build-standalone")
+    pbs_repo = github.get_repo("astral-sh/python-build-standalone")
 
     print("Downloading PBS release metadata.")
     releases = pbs_repo.get_releases()
