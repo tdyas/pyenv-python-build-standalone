@@ -341,6 +341,23 @@ install_pbs_release() {
     local python_version="$2"
     local pbs_release_tag="$3"
 
+    local pbs_install_id="pbs-${python_version}+${pbs_release_tag}"
+    local pbs_install_version_dir="$(pyenv-root)/versions/${pbs_install_id}"
+
+    # Check whether this PBS release is already installed.
+    if [ -e "$pbs_install_version_dir" ]; then
+        if [ -n "$SKIP_EXISTING" ]; then
+            echo "Skipping already installed ${pbs_install_id}."
+            return
+        elif [ -n "$FORCE" ]; then
+            echo "Forcing install of already installed ${pbs_install_id}."
+            rm -r "$pbs_install_version_dir"
+        else
+            echo "${pbs_install_id} is already installed. Exiting ..."
+            exit 1
+        fi
+    fi
+
     # Load the URL and sha256 checksum to use.
     local -a download_file_lines
     read_file_to_array "$pbs_download_definition_path" download_file_lines
@@ -381,8 +398,6 @@ install_pbs_release() {
         return 1
     fi
 
-    pbs_install_id="pbs-${python_version}+${pbs_release_tag}"
-    local pbs_install_version_dir="$(pyenv-root)/versions/${pbs_install_id}"
     mkdir -p "$pbs_install_version_dir"
     tar xzf "$pbs_archive_path" --strip-components=1 -C "$pbs_install_version_dir"
 

@@ -41,3 +41,26 @@ jobs:
       run: |
         pbs_python_id="$(pyenv versions --bare | grep ^pbs-3.12)"
         pyenv install-pbs --list | grep -q "^$pbs_python_id\$"
+
+    - name: Test the --skip-existing and --force options
+      run: |
+        set +e  # do not exit immediately on failed command
+
+        pyenv install-pbs 3.12
+        if [ $? = 0 ]; then
+          echo "ERROR: Reinstallation of existing version should have failed." 1>&2
+          exit 1
+        fi
+
+        pyenv install-pbs --skip-existing 3.12
+        if [ $? != 0 ]; then
+          echo "ERROR: --skip-existing should have succeeded." 1>&2
+          exit 1
+        fi
+
+        pyenv install-pbs --force 3.12
+        if [ $? != 0 ]; then
+          echo "ERROR: --force should have succeeded." 1>&2
+          exit 1
+        fi
+
