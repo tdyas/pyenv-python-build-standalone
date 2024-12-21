@@ -16,7 +16,7 @@ The plugin adds a new `pyenv install-pbs` subcommand which will download and ins
 
 For example, install the latest Python 3.12 patchlevel and PBS release tag from PBS: `pyenv install-pbs 3.12`
 
-Or install a specific PBS release by running: `pyenv install-pbs 3.13.1 20241206`
+Or install a specific PBS release by running: `pyenv install-pbs 3.13.1+20241206`
 
 The name of the particular PBS version will be `pbs-PYTHON_VERSION+PBS_RELEASE_TAG`. You can then use that name with `pyenv global` to make it visible on the system.
 
