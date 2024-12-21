@@ -2,7 +2,7 @@
 #
 # Summary: Install a Python Build Standalone version of Python.
 #
-# Usage: pyenv install-pbs [-fs] <python_version> [pbs_release]
+# Usage: pyenv install-pbs [-fs] <python_version>[+pbs_release] ...
 #        pyenv install-pbs -l|--list
 #        pyenv install-pbs --version
 #
@@ -11,11 +11,11 @@
 #   -s/--skip-existing  Skip if the version appears to be installed already.
 #   --version           Print the version of the install-pbs plugin.
 #
-#   python_version>   A Python version such as 3.9 or 3.9.20. If only the major/minor version numbers
-#                     are specified, then the latest patchlevel for the given version will be installed.
+#   python_version   A Python version such as 3.9 or 3.9.20. If only the major/minor version numbers
+#                    are specified, then the latest patchlevel for the given version will be installed.
 #
-#   pbs_release       An optional PBS release tag to install. If it is not specfied, then the latest
-#                     PBS release for the chosen Python version will be installed.
+#   pbs_release      An optional PBS release tag to install. If it is not specfied, then the latest
+#                    PBS release for the chosen Python version will be installed.
 #
 # See https://gregoryszorc.com/docs/python-build-standalone/main/ and
 # https://github.com/indygreg/python-build-standalone for more information about the
@@ -408,31 +408,54 @@ install_pbs_release() {
     fi
 
     echo "Installed ${pbs_install_id}."
+}
+
+attempt_install_of_pbs_release() {
+    local version_requests
+    local python_version_request
+    local pbs_release_tag_request
+
+    IFS='+' read -ra version_requests <<< "$1"
+    if [[ "${#version_requests[*]}" = 1 ]]; then
+        python_version_request="${version_requests[0]}"
+        pbs_release_tag_request=''
+    elif [[ "${#version_requests[*]}" = 2 ]]; then
+        python_version_request="${version_requests[0]}"
+        pbs_release_tag_request="${version_requests[1]}"
+    else
+        echo "ERROR: Version request '$1' has too many + characters." 1>&2
+        exit 1
+    fi
+
+    local python_version=$(choose_python_version "$python_version_request")
+    echo "Python version: $python_version"
+
+    local pbs_release_tag
+    if [ -z "$pbs_release_tag_request" ]; then
+        pbs_release_tag=$(choose_pbs_release_tag "$python_version")
+    else
+        pbs_release_tag="$pbs_release_tag_request"
+    fi
+    echo "PBS release tag: $pbs_release_tag"
+
+    local download_definitions_path=$(get_download_definitions_path "$python_version" "$pbs_release_tag")
+
+    local pbs_arch="$(determine_pbs_arch)"
+    local pbs_os="$(determine_pbs_os)"
+
+    local download_definition_path="${download_definitions_path}/${pbs_arch}-${pbs_os}.def"
+    if [ ! -r "$download_definition_path" ]; then
+        echo "ERROR: Unable to access download definition file at $download_definition_path." 1>&2
+        exit 1
+    fi
+
+    install_pbs_release "$download_definition_path" "$python_version" "$pbs_release_tag"
 } 
 
 if [ -z "$ARGUMENTS[0]" ]; then
     usage 1 1>&2
 fi
 
-python_version=$(choose_python_version "${ARGUMENTS[0]}")
-echo "Python version: $python_version"
-
-if [ -z "${ARGUMENTS[1]}" ]; then
-    pbs_release_tag=$(choose_pbs_release_tag "$python_version")
-else
-    pbs_release_tag="${ARGUMENTS[1]}"
-fi
-echo "PBS release tag: $pbs_release_tag"
-
-download_definitions_path=$(get_download_definitions_path "$python_version" "$pbs_release_tag")
-
-pbs_arch="$(determine_pbs_arch)"
-pbs_os="$(determine_pbs_os)"
-
-download_definition_path="${download_definitions_path}/${pbs_arch}-${pbs_os}.def"
-if [ ! -r "$download_definition_path" ]; then
-    echo "ERROR: Unable to access download definition file at $download_definition_path." 1>&2
-    exit 1
-fi
-
-install_pbs_release "$download_definition_path" "$python_version" "$pbs_release_tag"
+for arg in "${ARGUMENTS[@]}" ; do
+   attempt_install_of_pbs_release "$arg"
+done
