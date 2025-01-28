@@ -1,31 +1,38 @@
 on:
   schedule:
-  - cron: "30 4 * * *"
+    - cron: "30 4 * * *"
+  workflow_dispatch: {}
 
 jobs:
   scrape_pbs_releases:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
         python-version: '3.13' 
-    - name: Scrape latest Python releases
+    - name: Scrape latest Python Build Standalone releases
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        set -x +e
+
         scripts/gen.sh
+        if [ $? != 0 ]; then
+          echo "ERROR: Generator script failed." 1>&2
+          exit 1
+        fi
 
         untracked_files="$(git ls-files --others --exclude-standard | grep ^share)"
         if [ -z "$untracked_files" ]; then
+          echo "NO NEW RELEASES FOUND."
           exit 0
         fi
 
-        branch_name="$(date '+%Y-%m-%d-%H-%M')"
+        branch_name="scrape_$(date '+%Y-%m-%d-%H-%M')"
         git checkout -b "$branch_name"
         git add share
-        git commit -m "Newly scraped releases"
+        git commit -m "Newly scraped release(s)"
         git push origin "$branch_name"
 
         gh pr create --title="Newly scraped releases as of $(date '+%Y-%m-%d')" --reviewer=tdyas
