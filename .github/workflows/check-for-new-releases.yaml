@@ -29,10 +29,16 @@ jobs:
           exit 0
         fi
 
+        git config user.name "${GITHUB_ACTOR}"
+        git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
         branch_name="scrape_$(date '+%Y-%m-%d-%H-%M')"
         git checkout -b "$branch_name"
         git add share
         git commit -m "Newly scraped release(s)"
         git push origin "$branch_name"
 
-        gh pr create --title="Newly scraped releases as of $(date '+%Y-%m-%d')" --reviewer=tdyas
+        gh pr create \
+          --title="Newly scraped releases as of $(date '+%Y-%m-%d')" \
+          --body="Add configuration for newly-scraped PBS releases." \
+          --reviewer=tdyas
